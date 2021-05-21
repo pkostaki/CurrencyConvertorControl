@@ -16,5 +16,10 @@ namespace CustomControlLibrary
         /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
         /// <returns>Returns the exchange rate if operation succeeded otherwise <see cref="double.NaN"/></returns>
         Task<double> GetExchangeRate(string fromCurrency, string toCurrency, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Dispose object
+        /// </summary>
+        public void Dispose();
     }
 }

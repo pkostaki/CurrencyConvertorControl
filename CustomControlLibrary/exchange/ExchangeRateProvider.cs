@@ -35,5 +35,10 @@ namespace CustomControlLibrary
                 return double.NaN;
             }
         }
+
+        public void Dispose()
+        {
+            _client.Dispose();
+        }
     }
 }
