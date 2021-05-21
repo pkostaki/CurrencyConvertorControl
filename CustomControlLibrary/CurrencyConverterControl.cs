@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.Serialization;
 using System.Runtime.Serialization.Json;
 using System.Threading;
@@ -35,7 +34,7 @@ namespace CustomControlLibrary
             set
             {
                 _exchangeRateProvider = value;
-                TryInvalidateConvertionRate();
+                TryInvalidateExchangeRate();
             }
         }
         #endregion
@@ -64,7 +63,7 @@ namespace CustomControlLibrary
             }
 
             instance.InvalidateCurrencyComponentView(instance.CurrencyFrom, instance.SelectedCurrencyIdFrom);
-            instance.TryInvalidateConvertionRate();
+            instance.TryInvalidateExchangeRate();
         }
 
         /// <summary>
@@ -89,7 +88,7 @@ namespace CustomControlLibrary
             }
 
             instance.InvalidateCurrencyComponentView(instance.CurrencyTo, instance.SelectedCurrencyIdTo);
-            instance.TryInvalidateConvertionRate();
+            instance.TryInvalidateExchangeRate();
         }
 
         /// <summary>
@@ -350,7 +349,7 @@ namespace CustomControlLibrary
         public override void OnApplyTemplate()
         {
             InitializeUI();
-            TryInvalidateConvertionRate();
+            TryInvalidateExchangeRate();
             base.OnApplyTemplate();
         }
 
@@ -401,7 +400,7 @@ namespace CustomControlLibrary
             currencyViewComponent.SelectedIndex = CounriesItems.FindIndex(item => item.CurrencyId.Equals(currencyId, StringComparison.OrdinalIgnoreCase));
         }
 
-        private async void TryInvalidateConvertionRate()
+        private async void TryInvalidateExchangeRate()
         {
             VisualStateManager.GoToState(this, "SelectorsLoading", true);
             VisualStateManager.GoToState(this, "InputLoading", true);
@@ -410,8 +409,23 @@ namespace CustomControlLibrary
                 // Leave control at loading state while waiting setting of provider.
                 return;
             }
+            var rate = await InvalidateExchangeRate();
+            if (double.IsNaN(rate))
+            {
+                // In case of provider return invalid value enabled control to select other currencies of conversion.
+                VisualStateManager.GoToState(this, "SelectorsReady", true);
+                return;
+            }
+            // Got an exchange rate.
+            SetValue(RateKey, rate);
+            InvalidateConvertion();
+            VisualStateManager.GoToState(this, "SelectorsReady", true);
+            VisualStateManager.GoToState(this, "InputReady", true);
+        }
 
-            if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+        private async Task<double> InvalidateExchangeRate()
+        {
+            if (_cancellationTokenSource != null/* && !_cancellationTokenSource.IsCancellationRequested*/)
             {
                 // Cancel any previous requests to provider.
                 _cancellationTokenSource.Cancel();
@@ -424,24 +438,10 @@ namespace CustomControlLibrary
                     var token = _cancellationTokenSource.Token;
                     var fromCurrency = SelectedCurrencyIdFrom;
                     var toCurrency = SelectedCurrencyIdTo;
-
-                    var rate = await Task.Run(() =>
-                        _exchangeRateProvider.GetExchangeRate(fromCurrency, toCurrency, token), token);
-                    if (_cancellationTokenSource.IsCancellationRequested)
-                    {
-                        return;
-                    }
-
-                    if (double.IsNaN(rate))
-                    {
-                        VisualStateManager.GoToState(this, "SelectorsReady", true);
-                        return;
-                    }
-
-                    SetValue(RateKey, rate);
-                    InvalidateConvertion();
-                    VisualStateManager.GoToState(this, "SelectorsReady", true);
-                    VisualStateManager.GoToState(this, "InputReady", true);
+                    var rate = await Task.Run(() => _exchangeRateProvider.GetExchangeRate(fromCurrency, toCurrency, token), token);
+                    _cancellationTokenSource = null;
+                    return rate;
+                    
                 }
                 catch (Exception ex) when (ex is TaskCanceledException
                         || (ex is AggregateException && ex.InnerException is TaskCanceledException))
@@ -449,6 +449,7 @@ namespace CustomControlLibrary
                     // Do nothing
                 }
                 _cancellationTokenSource = null;
+                return double.NaN;
             }
         }
 

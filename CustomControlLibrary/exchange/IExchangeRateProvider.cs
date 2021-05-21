@@ -1,4 +1,5 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CustomControlLibrary
@@ -6,7 +7,7 @@ namespace CustomControlLibrary
     /// <summary>
     /// Provides a exchange currency rate
     /// </summary>
-    public interface IExchangeRateProvider
+    public interface IExchangeRateProvider: IDisposable
     {
         /// <summary>
         /// Return exchange currency rate.
@@ -16,10 +17,5 @@ namespace CustomControlLibrary
         /// <param name="cancellationToken">The cancellation token to cancel the operation.</param>
         /// <returns>Returns the exchange rate if operation succeeded otherwise <see cref="double.NaN"/></returns>
         Task<double> GetExchangeRate(string fromCurrency, string toCurrency, CancellationToken cancellationToken);
-
-        /// <summary>
-        /// Dispose object
-        /// </summary>
-        public void Dispose();
     }
 }

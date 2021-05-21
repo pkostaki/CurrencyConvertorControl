@@ -10,7 +10,7 @@ namespace CustomControlLibrary
     /// <summary>
     /// Exchange currency provider.
     /// </summary>
-    public class ExchangeRateProvider : IExchangeRateProvider
+    public sealed class ExchangeRateProvider : IExchangeRateProvider
     {
         private readonly HttpClient _client = new();
 
@@ -36,9 +36,10 @@ namespace CustomControlLibrary
             }
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
-            _client.Dispose();
+            _client?.Dispose();
         }
     }
 }
